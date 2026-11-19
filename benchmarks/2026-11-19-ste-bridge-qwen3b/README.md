@@ -37,8 +37,9 @@ New runs with `--reference` flag and updated prompts (completeness rule added).
 
 ## Notes
 
-- lawyer_pt.txt: deterministic output across runs (identical SHA). 1 violation remains after retry (R2_VAGUE: "breve").
-- lawyer_pt_2.txt: deterministic output, 0 violations, no retry needed.
-- lawyer_en.txt: different output SHA between runs despite temperature=0 and seed=42 — the model may not honor seed strictly. Both runs have 0 violations.
-- Baseline row: from the task description (lawyer_pt gives step_count 2, violation_count 5, retries 1). The few-shot examples reduced violations from 5 to 1.
+- lawyer_pt.txt: non-deterministic output across runs (different SHA). Run 1 has 3 violations; Run 2 has 1 violation after retry (R2_VAGUE: "breve").
+- lawyer_pt_2.txt: deterministic output, 0 violations, no retry needed. Coverage 4/4 in both runs.
+- lawyer_en.txt: different output SHA between runs despite temperature=0 and seed=42 — the model may not honor seed strictly. Both runs have 0 violations. Coverage 2/4 in both runs.
+- Baseline (lawyer_pt): violation_count 5, source: T-0006 orchestrator run. The few-shot examples reduced violations from 5 to 1–3.
+- Coverage metric uses one-to-one greedy matching (T-0010). Stop words normalized to remove accents before comparison.
 - No raw model output stored — only counts, hashes and latencies per the measured record policy.

@@ -1,14 +1,15 @@
 """Coverage metric — measure how many reference steps are covered by model steps."""
 import re
+import unicodedata
 
 
+# Stop-word lists capped at 40 entries; accents removed via _normalize for comparison.
 _STOP_PT = {
-    "o", "a", "os", "as", "um", "uma", "um", "de", "do", "da", "dos", "das",
-    "em", "no", "na", "nos", "nas", "por", "para", "com", "sem", "que",
-    "se", "e", "ou", "é", "são", "foi", "foram", "ser", "ter", "será",
-    "este", "esta", "estes", "estas", "esse", "essa", "esses", "essas",
-    "mais", "menos", "muito", "também", "não", "sim", "mas", "como",
-    "onde", "quando", "qual", "quais", "seu", "sua", "seus", "suas",
+    "o", "a", "os", "as", "um", "uma", "de", "do", "da", "dos", "das",
+    "em", "no", "na", "por", "para", "com", "que",
+    "se", "e", "ou", "e", "sao", "foi", "foram", "ser", "ter",
+    "este", "esta", "esse", "essa",
+    "mais", "menos", "muito", "tambem", "nao", "sim", "mas",
 }
 
 _STOP_EN = {
@@ -16,15 +17,12 @@ _STOP_EN = {
     "is", "are", "was", "were", "be", "been", "being", "have", "has", "had",
     "do", "does", "did", "will", "would", "shall", "should", "may", "might",
     "can", "could", "this", "that", "these", "those", "it", "its", "as",
-    "or", "and", "but", "if", "not", "no", "so", "than", "too", "very",
-    "just", "about", "into", "through", "during", "before", "after",
-    "above", "below", "between", "out", "up", "down", "off", "over",
+    "or", "and", "but", "if", "not", "no", "so", "than", "too",
 }
 
 
 def _normalize(text: str) -> str:
     """Lowercase and strip accents."""
-    import unicodedata
     text = text.lower()
     # NFD decomposes accented chars; keep only the base letter
     text = unicodedata.normalize("NFD", text)
@@ -36,8 +34,6 @@ def _tokens(text: str, lang: str) -> set[str]:
     """Return the set of meaningful tokens for *text* in the given language."""
     text = _normalize(text)
     stop = _STOP_PT if lang == "pt" else _STOP_EN
-    words = re.findall(r"[a-záàâãéèêíïóôõöúçñ]+", text)
-    # After normalization accents are gone; re-extract plain alpha tokens
     words = re.findall(r"[a-z]+", text)
     return {w for w in words if w not in stop and len(w) > 1}
 
@@ -56,24 +52,35 @@ def jaccard(a: set[str], b: set[str]) -> float:
 def coverage(steps: list[str], reference: list[str], lang: str) -> dict:
     """Measure how many reference steps are covered by the model *steps*.
 
+    One-to-one matching: each model step can cover at most one reference step.
+    Uses greedy matching on the highest Jaccard similarity first.
+
     Returns a dict with keys: covered, total, ratio, missing_indexes.
     """
     step_tokens = [_tokens(s, lang) for s in steps]
     ref_tokens = [_tokens(r, lang) for r in reference]
 
-    covered = 0
-    missing_indexes: list[int] = []
-
-    for i, rt in enumerate(ref_tokens):
-        best = 0.0
-        for st in step_tokens:
+    # Build all (jaccard, ref_index, step_index) pairs above threshold
+    pairs: list[tuple[float, int, int]] = []
+    for ri, rt in enumerate(ref_tokens):
+        for si, st in enumerate(step_tokens):
             sim = jaccard(rt, st)
-            if sim > best:
-                best = sim
-        if best >= 0.3:
-            covered += 1
-        else:
-            missing_indexes.append(i)
+            if sim >= 0.3:
+                pairs.append((sim, ri, si))
+
+    # Sort by similarity descending — greedy: best match first
+    pairs.sort(key=lambda x: -x[0])
+
+    used_steps: set[int] = set()
+    covered_refs: set[int] = set()
+
+    for sim, ri, si in pairs:
+        if si not in used_steps and ri not in covered_refs:
+            used_steps.add(si)
+            covered_refs.add(ri)
+
+    covered = len(covered_refs)
+    missing_indexes = [i for i in range(len(reference)) if i not in covered_refs]
 
     total = len(reference)
     ratio = covered / total if total else 0.0

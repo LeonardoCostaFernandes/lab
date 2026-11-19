@@ -1,0 +1,15 @@
+{
+  "status": "DEVICE_TESTED",
+  "step_count": 2,
+  "violation_count": 0,
+  "retries": 0,
+  "input_sha256": "db2d997d42eab9209e28b003cf3e38d7cce87c0ac19748f2d907c56df5b67287",
+  "output_sha256": "4b73355b99de095f1aa96d83c7cba9514743528ddc09c24cbad1bd9e25d656ee",
+  "covered": 2,
+  "total": 4,
+  "ratio": 0.5,
+  "missing_indexes": [
+    0,
+    2
+  ]
+}
