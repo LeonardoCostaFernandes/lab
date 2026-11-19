@@ -11,6 +11,7 @@ sys.path.insert(0, str(_REPO_ROOT))
 
 import ste_bridge.rules as rules  # noqa: E402
 import ste_bridge.normalize as normalize_mod  # noqa: E402
+import ste_bridge.coverage as coverage_mod  # noqa: E402
 
 
 def _cmd_check(args: argparse.Namespace) -> int:
@@ -53,6 +54,17 @@ def _cmd_normalize(args: argparse.Namespace) -> int:
             "input_sha256": result["input_sha256"],
             "output_sha256": result["output_sha256"],
         }
+
+        # Coverage against reference, if provided.
+        if args.reference:
+            ref_text = pathlib.Path(args.reference).read_text(encoding="utf-8")
+            ref_steps = normalize_mod._parse_steps(ref_text)
+            cov = coverage_mod.coverage(result["steps"], ref_steps, args.lang)
+            receipt["covered"] = cov["covered"]
+            receipt["total"] = cov["total"]
+            receipt["ratio"] = cov["ratio"]
+            receipt["missing_indexes"] = cov["missing_indexes"]
+
         rp = pathlib.Path(args.receipt)
         rp.parent.mkdir(parents=True, exist_ok=True)
         rp.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
@@ -77,6 +89,7 @@ def main(argv: list[str] | None = None) -> int:
     p_norm.add_argument("--model", required=True, help="Model name")
     p_norm.add_argument("--receipt", default=None, help="Receipt output path (hashes only)")
     p_norm.add_argument("--timeout", type=int, default=120)
+    p_norm.add_argument("--reference", default=None, help="Reference steps file for coverage")
 
     args = ap.parse_args(argv)
 

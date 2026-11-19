@@ -6,6 +6,7 @@ Rules:
 - Use active voice. Name who acts.
 - Replace vague words with concrete deadlines or actions.
 - If a condition applies, write "Se X, faça Y" as its own step.
+- Write one step for each check, each decision and each action in the input.
 - End with "Parar e alertar o humano." if the case is out of scope.
 
 Examples:

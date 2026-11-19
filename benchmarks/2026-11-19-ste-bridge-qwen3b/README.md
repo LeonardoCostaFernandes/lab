@@ -22,6 +22,19 @@
 | lawyer_en.txt | 2 | 3 | 0 | 0 | 10d051630eb3 |
 | **Baseline (lawyer_pt)** | — | 2 | 5 | 1 | — |
 
+## T-0008 — Coverage metric
+
+New runs with `--reference` flag and updated prompts (completeness rule added).
+
+| Fixture | Run | Step count | Violation count | Retries | Covered / Total | Ratio | Output SHA-256 (prefix) |
+|---|---|---|---|---|---|---|---|
+| lawyer_pt.txt | 1 | 2 | 3 | 1 | 0 / 4 | 0.00 | 479647e68a8e |
+| lawyer_pt.txt | 2 | 2 | 1 | 1 | 1 / 4 | 0.25 | 5c8465b4f380 |
+| lawyer_pt_2.txt | 1 | 2 | 0 | 0 | 4 / 4 | 1.00 | 4b73355b99de |
+| lawyer_pt_2.txt | 2 | 2 | 0 | 0 | 4 / 4 | 1.00 | 4b73355b99de |
+| lawyer_en.txt | 1 | 3 | 0 | 0 | 2 / 4 | 0.50 | 614959bb04f0 |
+| lawyer_en.txt | 2 | 3 | 0 | 0 | 2 / 4 | 0.50 | 91482a8c8d91 |
+
 ## Notes
 
 - lawyer_pt.txt: deterministic output across runs (identical SHA). 1 violation remains after retry (R2_VAGUE: "breve").
