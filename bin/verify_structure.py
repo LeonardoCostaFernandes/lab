@@ -2,12 +2,15 @@
 """Check repository layout and that no receipt contains raw text fields."""
 import json
 import pathlib
+import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 REQUIRED = ["AGENTS.md", "CLAUDE.md", "README.md", "STATE.md", "LICENSE", "NOTICE", "llms.txt",
             "benchmarks", "proposals", "reports", "contracts", "fixtures", "tests", "bin"]
 FORBIDDEN_KEYS = {"prompt", "output", "content", "messages", "answer", "api_key", "authorization"}
+FORBIDDEN_HEADER = "Authorization:"
+SECRET_PATTERN = re.compile(r"sk-[A-Za-z0-9]{20,}")
 
 
 def problems(root=ROOT):
@@ -24,6 +27,13 @@ def problems(root=ROOT):
                 stack.extend(node.values())
             elif isinstance(node, list):
                 stack.extend(node)
+    for f in (root / "benchmarks").rglob("*"):
+        if f.is_file():
+            text = f.read_text(encoding="utf-8", errors="replace")
+            if FORBIDDEN_HEADER in text:
+                out.append(f"forbidden header in {f.relative_to(root)}")
+            if SECRET_PATTERN.search(text):
+                out.append(f"possible secret key in {f.relative_to(root)}")
     return out
 
 
