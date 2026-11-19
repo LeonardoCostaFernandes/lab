@@ -1,0 +1,8 @@
+[
+  {"term": "prazo", "lang": "pt", "meaning": "a period counted in business days", "use_instead_of": []},
+  {"term": "data limite", "lang": "pt", "meaning": "the last calendar day to act", "use_instead_of": []},
+  {"term": "deadline", "lang": "en", "meaning": "the last calendar day to act", "use_instead_of": []},
+  {"term": "time limit", "lang": "en", "meaning": "a period counted in business days", "use_instead_of": []},
+  {"term": "protocolar", "lang": "pt", "meaning": "to submit a document to the court system", "use_instead_of": []},
+  {"term": "petição", "lang": "pt", "meaning": "a written request to the court", "use_instead_of": []}
+]

@@ -31,6 +31,22 @@ python3 -m unittest discover -s tests -p "test_*.py"   # twice
 python3 bin/verify_structure.py
 ```
 
+## ste_bridge
+
+A filter that converts legal Portuguese or English text into controlled-language steps (ASD-STE100 style). A local model performs the rewrite; deterministic rules check the result.
+
+**Commands**
+
+- `python bin/ste_bridge.py check --in FILE --lang pt|en` — print violations as JSON.
+- `python bin/ste_bridge.py normalize --in FILE --lang pt|en --endpoint URL --model NAME [--receipt FILE]` — rewrite text into numbered steps and optionally write a receipt (hashes and counts only).
+
+**Rules**
+
+1. `R1_LENGTH` — sentence exceeds 20 words.
+2. `R2_VAGUE` — sentence contains a vague word (e.g., *tempestividade*, *reasonable*).
+3. `R3_PASSIVE` — sentence uses passive voice.
+4. `R4_MULTI_ACTION` — sentence joins multiple actions (e.g., "e", "and", ";").
+
 ## Status
 
 Proposal. Unsigned. Nothing here is a LIVE node or a public service.
