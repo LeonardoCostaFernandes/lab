@@ -121,7 +121,7 @@ class TestNormalize(unittest.TestCase):
 
     def test_normalize_rejects_non_loopback(self):
         # check_loopback must reject localhost and non-loopback IPs.
-        for bad in ["http://localhost:8080", "http://192.168.1.5:8080"]:
+        for bad in ["http://localhost:8080", "http://203.0.113.5:8080"]:
             with self.assertRaises(ValueError):
                 lmb.check_loopback(bad)
 
@@ -149,6 +149,128 @@ class TestNormalize(unittest.TestCase):
             raw = receipt_path.read_text(encoding="utf-8")
             self.assertNotIn("diligenciar", raw, "receipt must not contain raw input text")
             self.assertNotIn("Verifique", raw, "receipt must not contain raw output text")
+
+
+class TestParseSteps(unittest.TestCase):
+    """Tests for _parse_steps — parsing numbered and bulleted steps."""
+
+    def test_numbered_dot(self):
+        text = "1. First step\n2. Second step\n3. Third step"
+        steps = normalize_mod._parse_steps(text)
+        self.assertEqual(steps, ["First step", "Second step", "Third step"])
+
+    def test_numbered_paren(self):
+        text = "1) First step\n2) Second step"
+        steps = normalize_mod._parse_steps(text)
+        self.assertEqual(steps, ["First step", "Second step"])
+
+    def test_bulleted(self):
+        text = "- First step\n- Second step"
+        steps = normalize_mod._parse_steps(text)
+        self.assertEqual(steps, ["First step", "Second step"])
+
+    def test_mixed_formats(self):
+        text = "1. Dot step\n2) Paren step\n- Bullet step"
+        steps = normalize_mod._parse_steps(text)
+        self.assertEqual(steps, ["Dot step", "Paren step", "Bullet step"])
+
+    def test_empty_lines_ignored(self):
+        text = "1. Step one\n\n2. Step two\n   "
+        steps = normalize_mod._parse_steps(text)
+        self.assertEqual(steps, ["Step one", "Step two"])
+
+    def test_non_step_lines_ignored(self):
+        text = "Some intro text\n1. Real step\nRandom note\n2. Another step"
+        steps = normalize_mod._parse_steps(text)
+        self.assertEqual(steps, ["Real step", "Another step"])
+
+
+class TestNormalizeLoopback(unittest.TestCase):
+    """Tests that normalize() enforces loopback-only endpoints."""
+
+    def test_normalize_rejects_non_loopback_ip(self):
+        with self.assertRaises(ValueError):
+            normalize_mod.normalize(
+                text="test",
+                lang="pt",
+                endpoint="http://203.0.113.5:8080",
+                model="test",
+                timeout=1,
+            )
+
+    def test_normalize_rejects_localhost(self):
+        with self.assertRaises(ValueError):
+            normalize_mod.normalize(
+                text="test",
+                lang="pt",
+                endpoint="http://localhost:8080",
+                model="test",
+                timeout=1,
+            )
+
+    def test_normalize_accepts_127_0_0_1(self):
+        # Should not raise ValueError for loopback IP
+        srv = http.server.HTTPServer(("127.0.0.1", 0), FakeChatServer)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        try:
+            endpoint = f"http://127.0.0.1:{srv.server_port}"
+            result = normalize_mod.normalize(
+                text="test",
+                lang="pt",
+                endpoint=endpoint,
+                model="test",
+                timeout=5,
+            )
+            self.assertEqual(result["status"], "DEVICE_TESTED")
+        finally:
+            srv.shutdown()
+
+
+class TestNormalizeRetryCount(unittest.TestCase):
+    """Tests that retries equals the number of retry requests sent (max 1)."""
+
+    def test_no_violations_no_retry(self):
+        srv = http.server.HTTPServer(("127.0.0.1", 0), FakeChatServer)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        try:
+            result = normalize_mod.normalize(
+                text="test",
+                lang="pt",
+                endpoint=f"http://127.0.0.1:{srv.server_port}",
+                model="test",
+                timeout=5,
+            )
+            self.assertEqual(result["retries"], 0)
+        finally:
+            srv.shutdown()
+
+
+class TestRulesWordBoundary(unittest.TestCase):
+    """Tests that R2 matches on word boundaries, not substrings."""
+
+    def test_breve_not_matched_in_abreviado(self):
+        # "abreviado" contains "breve" as substring but not as whole word
+        violations = rules.check("O prazo foi abreviado.", "pt")
+        r2_vague = [v for v in violations if v["rule"] == "R2_VAGUE"]
+        self.assertEqual(r2_vague, [], "breve should not match inside abreviado")
+
+    def test_breve_matched_as_word(self):
+        violations = rules.check("Em breve o prazo expira.", "pt")
+        r2_vague = [v for v in violations if v["rule"] == "R2_VAGUE"]
+        self.assertTrue(any(v["detail"] == "vague word found: breve" for v in r2_vague))
+
+
+class TestSentenceSplitting(unittest.TestCase):
+    """Tests that list numbers are stripped before sentence splitting."""
+
+    def test_numbered_sentences_no_orphan_tokens(self):
+        text = "1. Verifique a data.\n2. Confirme o prazo."
+        sentences = rules._split_sentences(text)
+        # No orphan "1" or "2" tokens
+        self.assertNotIn("1", sentences)
+        self.assertNotIn("2", sentences)
+        self.assertIn("Verifique a data", sentences)
+        self.assertIn("Confirme o prazo", sentences)
 
 
 if __name__ == "__main__":

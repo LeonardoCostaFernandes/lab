@@ -28,15 +28,19 @@ _MULTI_ACTION = re.compile(r"( e | and |;|, procedendo)", re.IGNORECASE)
 
 
 def _split_sentences(text: str) -> list[str]:
-    """Split text into sentences on . ! ? and newlines. Strip leading list numbers like '1.'."""
-    raw = re.split(r"[.!?]+|\n", text)
+    """Split text into sentences on . ! ? and newlines. Strip leading list numbers like '1.' first."""
+    lines = text.split("\n")
     sents: list[str] = []
-    for s in raw:
-        s = s.strip()
-        # Remove leading list numbers like "1. " or "42. "
-        s = re.sub(r"^\d+\.\s*", "", s).strip()
-        if s:
-            sents.append(s)
+    for line in lines:
+        # Strip leading list number BEFORE splitting on punctuation
+        line = re.sub(r"^\s*\d+[.)]\s*", "", line).strip()
+        if not line:
+            continue
+        parts = re.split(r"[.!?]+", line)
+        for p in parts:
+            p = p.strip()
+            if p:
+                sents.append(p)
     return sents
 
 
@@ -60,10 +64,11 @@ def check(text: str, lang: str) -> list[dict]:
                 "detail": f"sentence has {len(words)} words (max 20)",
             })
 
-        # R2_VAGUE
+        # R2_VAGUE — match on word boundaries so "breve" doesn't match "breve\n"
+        # inside "breve\n" or "abreviado"
         sent_lower = sent.lower()
         for word in vague:
-            if word in sent_lower:
+            if re.search(r"\b" + re.escape(word) + r"\b", sent_lower):
                 violations.append({
                     "rule": "R2_VAGUE",
                     "sentence_index": idx,
