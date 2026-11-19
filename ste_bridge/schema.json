@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "STE Structured Steps",
+  "type": "object",
+  "required": ["items"],
+  "additionalProperties": false,
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "actor", "verb", "object"],
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["check", "condition", "action", "stop"]
+          },
+          "actor": {
+            "type": "string",
+            "maxLength": 40
+          },
+          "verb": {
+            "type": "string",
+            "description": "One word, imperative mood"
+          },
+          "object": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "if": {
+            "type": ["string", "null"],
+            "maxLength": 60
+          },
+          "deadline": {
+            "type": ["string", "null"]
+          }
+        }
+      }
+    }
+  }
+}
