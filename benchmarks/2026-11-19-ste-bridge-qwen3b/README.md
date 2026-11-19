@@ -22,7 +22,9 @@
 | lawyer_en.txt | 2 | 3 | 0 | 0 | 10d051630eb3 |
 | **Baseline (lawyer_pt)** | — | 2 | 5 | 1 | — |
 
-## T-0008 — Coverage metric
+## T-0008 — Coverage metric (old metric, many-to-one, superseded by model-compare)
+
+> **Note:** These coverage numbers used the original many-to-one metric. They are superseded by the one-to-one greedy matching results in [model-compare](../2026-11-19-ste-bridge-model-compare/README.md). Kept for historical reference only.
 
 New runs with `--reference` flag and updated prompts (completeness rule added).
 

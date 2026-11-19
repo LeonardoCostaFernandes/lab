@@ -4,12 +4,13 @@
 - **Machine:** Ryzen 7 5800H · RTX 3050 Laptop 4 GB · 15.3 GB RAM · Windows · NVIDIA driver 621.14
 - **Runtime:** llama.cpp `b12549`, `win-cuda-12.4-x64`, `-ngl 99 -c 4096`
 - **3B Model:** `qwen2.5-3b-instruct-q4_k_m` · `http://127.0.0.1:8080`
-- **7B Model:** `qwen2.5-7b-instruct-q4_k_m` · `http://127.0.0.1:8081` (partial GPU offload)
+- **7B Model:** `qwen2.5-7b-instruct-q4_k_m` · `http://127.0.0.1:8081` (CPU only, -ngl 0, 8 threads)
 - **Command:** `bin/ste_bridge.py normalize --in <fixture> --lang <pt|en> --endpoint <url> --model <name> --reference <expected> --receipt <path>`
 - **Fixtures:** `fixtures/ste/lawyer_pt.txt`, `fixtures/ste/lawyer_pt_2.txt`, `fixtures/ste/lawyer_en.txt`
 - **References:** `fixtures/ste/expected_pt.txt`, `fixtures/ste/expected_pt_2.txt`, `fixtures/ste/expected_en.txt`
 - **Temperature:** 0, **Seed:** 42, **Max tokens:** 1024
-- **Coverage:** one-to-one greedy Jaccard matching (threshold ≥ 0.3), stop words normalized (accents removed)
+- **Coverage:** one-to-one greedy Jaccard matching, stop words normalized (accents removed)
+- **Coverage threshold:** 0.3 (orchestrator choice)
 
 ## Results
 

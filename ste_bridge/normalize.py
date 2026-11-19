@@ -4,6 +4,7 @@ import ipaddress
 import json
 import pathlib
 import re
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -63,7 +64,7 @@ def _check_loopback(endpoint: str) -> str:
 def normalize(text: str, lang: str, endpoint: str, model: str, timeout: int = 120) -> dict:
     """Rewrite *text* into controlled-language steps using a local model.
 
-    Returns a dict with keys: status, steps, violations, retries, input_sha256, output_sha256.
+    Returns a dict with keys: status, steps, violations, retries, input_sha256, output_sha256, latency_ms.
     """
     # Enforce loopback-only inside normalize(), not just in CLI
     try:
@@ -76,11 +77,15 @@ def normalize(text: str, lang: str, endpoint: str, model: str, timeout: int = 12
     retries = 0
     output_text = ""
     violations = []
+    total_latency_ms = 0.0
 
     user_message = text
     for attempt in range(2):
         try:
+            t0 = time.monotonic()
             output_text = _chat_request(endpoint, model, system_prompt, user_message, timeout)
+            elapsed_ms = (time.monotonic() - t0) * 1000
+            total_latency_ms += elapsed_ms
         except (urllib.error.URLError, OSError, KeyError, ValueError) as e:
             return {
                 "status": f"NO_DATA({type(e).__name__})",
@@ -89,6 +94,7 @@ def normalize(text: str, lang: str, endpoint: str, model: str, timeout: int = 12
                 "retries": retries,
                 "input_sha256": input_hash,
                 "output_sha256": "",
+                "latency_ms": round(total_latency_ms, 1),
             }
 
         violations = rules.check(output_text, lang)
@@ -118,6 +124,7 @@ def normalize(text: str, lang: str, endpoint: str, model: str, timeout: int = 12
         "retries": retries,
         "input_sha256": input_hash,
         "output_sha256": _sha256(output_text),
+        "latency_ms": round(total_latency_ms, 1),
     }
 
 

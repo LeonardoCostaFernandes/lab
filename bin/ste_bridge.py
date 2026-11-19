@@ -53,6 +53,7 @@ def _cmd_normalize(args: argparse.Namespace) -> int:
             "retries": result["retries"],
             "input_sha256": result["input_sha256"],
             "output_sha256": result["output_sha256"],
+            "latency_ms": result.get("latency_ms"),
         }
 
         # Coverage against reference, if provided.

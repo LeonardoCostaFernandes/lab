@@ -14,10 +14,10 @@ _STOP_PT = {
 
 _STOP_EN = {
     "the", "a", "an", "of", "in", "to", "for", "with", "by", "on", "at",
-    "is", "are", "was", "were", "be", "been", "being", "have", "has", "had",
-    "do", "does", "did", "will", "would", "shall", "should", "may", "might",
-    "can", "could", "this", "that", "these", "those", "it", "its", "as",
-    "or", "and", "but", "if", "not", "no", "so", "than", "too",
+    "is", "are", "was", "were", "be", "been", "have", "has", "had",
+    "do", "does", "did", "will", "would", "should", "can", "could",
+    "this", "that", "it", "its", "as",
+    "or", "and", "but", "if", "not", "no",
 }
 
 
