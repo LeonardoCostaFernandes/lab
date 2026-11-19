@@ -16,6 +16,7 @@ sys.path.insert(0, str(_ROOT))
 import ste_bridge.rules as rules  # noqa: E402
 import ste_bridge.normalize as normalize_mod  # noqa: E402
 import ste_bridge.coverage as coverage_mod  # noqa: E402
+import ste_bridge.structured as structured_mod  # noqa: E402
 
 # bin/ is added after ste_bridge is already imported as a package.
 sys.path.insert(0, str(_ROOT / "bin"))
@@ -471,6 +472,177 @@ class TestCoverage(unittest.TestCase):
         self.assertEqual(result["covered"], 1,
                          "One model step must cover exactly one reference step when Jaccard >= 0.3 with both")
         self.assertEqual(result["total"], 2)
+
+
+class TestSchemaJson(unittest.TestCase):
+    """Tests that schema.json is valid JSON and has the expected structure."""
+
+    def test_schema_is_valid_json(self):
+        schema_path = _ROOT / "ste_bridge" / "schema.json"
+        data = json.loads(schema_path.read_text(encoding="utf-8"))
+        self.assertIn("properties", data)
+        self.assertIn("items", data["properties"])
+
+    def test_schema_has_required_fields(self):
+        schema_path = _ROOT / "ste_bridge" / "schema.json"
+        data = json.loads(schema_path.read_text(encoding="utf-8"))
+        item_props = data["properties"]["items"]["items"]["properties"]
+        for field in ["kind", "actor", "verb", "object", "if", "deadline"]:
+            self.assertIn(field, item_props, f"schema must define property '{field}'")
+
+    def test_schema_kind_enum(self):
+        schema_path = _ROOT / "ste_bridge" / "schema.json"
+        data = json.loads(schema_path.read_text(encoding="utf-8"))
+        kind_enum = data["properties"]["items"]["items"]["properties"]["kind"]["enum"]
+        self.assertEqual(set(kind_enum), {"check", "condition", "action", "stop"})
+
+
+class TestRender(unittest.TestCase):
+    """Tests for structured.render() — rendering items to step strings."""
+
+    def test_render_simple_action_pt(self):
+        items = [{"kind": "action", "actor": "advogado", "verb": "Protocolo", "object": "a petição"}]
+        steps = structured_mod.render(items, "pt")
+        self.assertEqual(steps, ["Protocolo a petição."])
+
+    def test_render_simple_action_en(self):
+        items = [{"kind": "action", "actor": "lawyer", "verb": "File", "object": "the motion"}]
+        steps = structured_mod.render(items, "en")
+        self.assertEqual(steps, ["File the motion."])
+
+    def test_render_condition_pt(self):
+        items = [{
+            "kind": "condition", "actor": "juiz", "verb": "Arquive",
+            "object": "o caso", "if": "o réu pagou a multa"
+        }]
+        steps = structured_mod.render(items, "pt")
+        self.assertEqual(steps, ["Se o réu pagou a multa, Arquive o caso."])
+
+    def test_render_condition_en(self):
+        items = [{
+            "kind": "condition", "actor": "judge", "verb": "Close",
+            "object": "the case", "if": "the defendant paid"
+        }]
+        steps = structured_mod.render(items, "en")
+        self.assertEqual(steps, ["If the defendant paid, Close the case."])
+
+    def test_render_stop_pt(self):
+        items = [{"kind": "stop", "actor": "sistema", "verb": "Pare", "object": ""}]
+        steps = structured_mod.render(items, "pt")
+        self.assertEqual(steps, ["Pare e alerte o humano."])
+
+    def test_render_stop_en(self):
+        items = [{"kind": "stop", "actor": "system", "verb": "Stop", "object": ""}]
+        steps = structured_mod.render(items, "en")
+        self.assertEqual(steps, ["Stop and alert the human."])
+
+    def test_render_multiple_items(self):
+        items = [
+            {"kind": "check", "actor": "sistema", "verb": "Verifique", "object": "o prazo"},
+            {"kind": "action", "actor": "advogado", "verb": "Protocolo", "object": "a contestação"},
+            {"kind": "stop", "actor": "sistema", "verb": "Pare", "object": ""},
+        ]
+        steps = structured_mod.render(items, "pt")
+        self.assertEqual(len(steps), 3)
+        self.assertEqual(steps[0], "Verifique o prazo.")
+        self.assertEqual(steps[1], "Protocolo a contestação.")
+        self.assertEqual(steps[2], "Pare e alerte o humano.")
+
+
+class TestExtract(unittest.TestCase):
+    """Tests for structured.extract() with a fake server."""
+
+    def setUp(self):
+        self.srv = http.server.HTTPServer(("127.0.0.1", 0), FakeStructuredServer)
+        threading.Thread(target=self.srv.serve_forever, daemon=True).start()
+        self.endpoint = f"http://127.0.0.1:{self.srv.server_port}"
+
+    def tearDown(self):
+        self.srv.shutdown()
+
+    def test_extract_device_tested(self):
+        result = structured_mod.extract(
+            text="Doutor, favor diligenciar.",
+            lang="pt",
+            endpoint=self.endpoint,
+            model="test-model",
+            timeout=5,
+        )
+        self.assertEqual(result["status"], "DEVICE_TESTED")
+        self.assertGreater(len(result["steps"]), 0)
+        self.assertIn("input_sha256", result)
+        self.assertIn("raw_items", result)
+
+    def test_extract_malformed_json_returns_no_data(self):
+        """When the model returns invalid JSON, extract returns NO_DATA(invalid_json)."""
+
+        class MalformedServer(http.server.BaseHTTPRequestHandler):
+            def do_POST(self):
+                n = int(self.headers["Content-Length"])
+                self.rfile.read(n)
+                body = json.dumps({
+                    "choices": [{"message": {"content": "{bad json"}}],
+                }).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *a):  # noqa: A002
+                pass
+
+        srv = http.server.HTTPServer(("127.0.0.1", 0), MalformedServer)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        try:
+            result = structured_mod.extract(
+                text="test",
+                lang="pt",
+                endpoint=f"http://127.0.0.1:{srv.server_port}",
+                model="test",
+                timeout=5,
+            )
+            self.assertEqual(result["status"], "NO_DATA(invalid_json)")
+        finally:
+            srv.shutdown()
+
+    def test_extract_rejects_non_loopback(self):
+        with self.assertRaises(ValueError):
+            structured_mod.extract(
+                text="test",
+                lang="pt",
+                endpoint="http://203.0.113.5:8080",
+                model="test",
+                timeout=1,
+            )
+
+
+class FakeStructuredServer(http.server.BaseHTTPRequestHandler):
+    """Respond with a schema-valid JSON object."""
+
+    def do_POST(self):
+        n = int(self.headers["Content-Length"])
+        self.rfile.read(n)
+        response = {
+            "items": [
+                {"kind": "check", "actor": "sistema", "verb": "Verifique", "object": "a data limite", "if": None, "deadline": None},
+                {"kind": "action", "actor": "advogado", "verb": "Protocolo", "object": "a contestação", "if": None, "deadline": "sexta-feira"},
+                {"kind": "condition", "actor": "juiz", "verb": "Arquive", "object": "o caso", "if": "o réu pagou", "deadline": None},
+                {"kind": "stop", "actor": "sistema", "verb": "Pare", "object": "", "if": None, "deadline": None},
+            ]
+        }
+        body = json.dumps({
+            "choices": [{"message": {"content": json.dumps(response)}}],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 40},
+        }).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *a):  # noqa: A002
+        pass
 
 
 if __name__ == "__main__":

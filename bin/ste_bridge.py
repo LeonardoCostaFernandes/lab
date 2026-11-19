@@ -12,6 +12,7 @@ sys.path.insert(0, str(_REPO_ROOT))
 import ste_bridge.rules as rules  # noqa: E402
 import ste_bridge.normalize as normalize_mod  # noqa: E402
 import ste_bridge.coverage as coverage_mod  # noqa: E402
+import ste_bridge.structured as structured_mod  # noqa: E402
 
 
 def _cmd_check(args: argparse.Namespace) -> int:
@@ -32,13 +33,24 @@ def _cmd_normalize(args: argparse.Namespace) -> int:
         return 2
 
     text = pathlib.Path(args.in_file).read_text(encoding="utf-8")
-    result = normalize_mod.normalize(
-        text=text,
-        lang=args.lang,
-        endpoint=endpoint,
-        model=args.model,
-        timeout=args.timeout,
-    )
+
+    mode = getattr(args, "mode", "text") or "text"
+    if mode == "structured":
+        result = structured_mod.extract(
+            text=text,
+            lang=args.lang,
+            endpoint=endpoint,
+            model=args.model,
+            timeout=args.timeout,
+        )
+    else:
+        result = normalize_mod.normalize(
+            text=text,
+            lang=args.lang,
+            endpoint=endpoint,
+            model=args.model,
+            timeout=args.timeout,
+        )
 
     # Print steps to stdout.
     for step in result["steps"]:
@@ -91,6 +103,8 @@ def main(argv: list[str] | None = None) -> int:
     p_norm.add_argument("--receipt", default=None, help="Receipt output path (hashes only)")
     p_norm.add_argument("--timeout", type=int, default=120)
     p_norm.add_argument("--reference", default=None, help="Reference steps file for coverage")
+    p_norm.add_argument("--mode", default="text", choices=["text", "structured"],
+                        help="Normalization mode: text (free-text) or structured (JSON schema)")
 
     args = ap.parse_args(argv)
 
