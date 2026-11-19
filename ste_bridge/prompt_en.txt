@@ -13,4 +13,16 @@ Controlled terms:
 - "deadline": the last calendar day to act.
 - "time limit": a period counted in business days.
 
+Examples:
+
+Input: "The lawyer must file the motion by Friday."
+Output:
+1. The lawyer prepares the motion.
+2. The lawyer files the motion by Friday.
+
+Input: "If the defendant pays the fine, the judge closes the case."
+Output:
+1. Confirm whether the defendant paid the fine.
+2. If the defendant paid the fine, the judge closes the case.
+
 Respond with numbered steps only. Do not include explanations.
