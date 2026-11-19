@@ -450,6 +450,28 @@ class TestCoverage(unittest.TestCase):
         self.assertEqual(result["covered"], 2)
         self.assertEqual(result["ratio"], 1.0)
 
+    def test_one_step_high_jaccard_two_refs_covers_one_only(self):
+        """When one model step has Jaccard >= 0.3 with two reference steps, it must cover only one."""
+        # A generic step that shares enough tokens with both references to exceed 0.3
+        steps = ["The court shall review the application and decide the matter."]
+        ref = [
+            "The court shall review the application.",
+            "The court shall decide the matter.",
+        ]
+        # Verify both Jaccard scores are >= 0.3
+        step_t = coverage_mod._tokens(steps[0], "en")
+        ref0_t = coverage_mod._tokens(ref[0], "en")
+        ref1_t = coverage_mod._tokens(ref[1], "en")
+        j0 = coverage_mod.jaccard(step_t, ref0_t)
+        j1 = coverage_mod.jaccard(step_t, ref1_t)
+        self.assertGreaterEqual(j0, 0.3, f"Jaccard with ref[0] should be >= 0.3, got {j0}")
+        self.assertGreaterEqual(j1, 0.3, f"Jaccard with ref[1] should be >= 0.3, got {j1}")
+        # One-to-one matching: one step can cover at most one ref
+        result = coverage_mod.coverage(steps, ref, "en")
+        self.assertEqual(result["covered"], 1,
+                         "One model step must cover exactly one reference step when Jaccard >= 0.3 with both")
+        self.assertEqual(result["total"], 2)
+
 
 if __name__ == "__main__":
     unittest.main()
