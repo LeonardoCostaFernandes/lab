@@ -15,6 +15,7 @@ sys.path.insert(0, str(_ROOT))
 
 import ste_bridge.rules as rules  # noqa: E402
 import ste_bridge.normalize as normalize_mod  # noqa: E402
+import ste_bridge.coverage as coverage_mod  # noqa: E402
 
 # bin/ is added after ste_bridge is already imported as a package.
 sys.path.insert(0, str(_ROOT / "bin"))
@@ -364,6 +365,54 @@ class TestRetryWithViolations(unittest.TestCase):
             self.assertGreater(len(result["violations"]), 0, "violations should remain after retry")
         finally:
             srv.shutdown()
+
+
+class TestCoverage(unittest.TestCase):
+    """Tests for the coverage metric."""
+
+    def test_identical_steps_ratio_one(self):
+        """Identical step lists must give ratio 1.0."""
+        steps = ["Verifique a data limite.", "Protocolo a contestação."]
+        ref = ["Verifique a data limite.", "Protocolo a contestação."]
+        result = coverage_mod.coverage(steps, ref, "pt")
+        self.assertEqual(result["ratio"], 1.0)
+        self.assertEqual(result["covered"], 2)
+        self.assertEqual(result["total"], 2)
+        self.assertEqual(result["missing_indexes"], [])
+
+    def test_empty_steps_ratio_zero(self):
+        """Empty model steps must give ratio 0.0."""
+        ref = ["Verifique a data limite.", "Protocolo a contestação."]
+        result = coverage_mod.coverage([], ref, "pt")
+        self.assertEqual(result["ratio"], 0.0)
+        self.assertEqual(result["covered"], 0)
+        self.assertEqual(result["total"], 2)
+        self.assertEqual(result["missing_indexes"], [0, 1])
+
+    def test_one_missing_step_correct_index(self):
+        """When one reference step is missing, the correct index is reported."""
+        steps = ["Verifique a data limite."]
+        ref = ["Verifique a data limite.", "Protocolo a contestação."]
+        result = coverage_mod.coverage(steps, ref, "pt")
+        self.assertEqual(result["covered"], 1)
+        self.assertEqual(result["total"], 2)
+        self.assertEqual(result["missing_indexes"], [1])
+
+    def test_jaccard_empty_sets(self):
+        """Jaccard of two empty sets is 1.0."""
+        self.assertEqual(coverage_mod.jaccard(set(), set()), 1.0)
+
+    def test_jaccard_one_empty(self):
+        """Jaccard with one empty set is 0.0."""
+        self.assertEqual(coverage_mod.jaccard({"a"}, set()), 0.0)
+        self.assertEqual(coverage_mod.jaccard(set(), {"a"}), 0.0)
+
+    def test_coverage_accent_normalization(self):
+        """Accented and unaccented words should match after normalization."""
+        steps = ["Verifique o prazo."]
+        ref = ["Verifique o prazo."]
+        result = coverage_mod.coverage(steps, ref, "pt")
+        self.assertEqual(result["ratio"], 1.0)
 
 
 if __name__ == "__main__":
