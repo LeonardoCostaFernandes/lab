@@ -28,7 +28,7 @@ class TestStructure(unittest.TestCase):
             for p in v.REQUIRED:
                 (root / p).mkdir(parents=True, exist_ok=True) if "." not in p else (root / p).write_text("x")
             leak = root / "benchmarks" / "leak.txt"
-            leak.parent.mkdir(parents=True)
+            leak.parent.mkdir(parents=True, exist_ok=True)
             leak.write_text("Authorization: Bearer secret123\n")
             pro = v.problems(root)
             self.assertTrue(any("forbidden header" in p for p in pro))
@@ -39,7 +39,7 @@ class TestStructure(unittest.TestCase):
             for p in v.REQUIRED:
                 (root / p).mkdir(parents=True, exist_ok=True) if "." not in p else (root / p).write_text("x")
             leak = root / "benchmarks" / "leak.txt"
-            leak.parent.mkdir(parents=True)
+            leak.parent.mkdir(parents=True, exist_ok=True)
             leak.write_text("key=sk-abcdefghijklmnopqrstuvwxyz\n")
             pro = v.problems(root)
             self.assertTrue(any("possible secret key" in p for p in pro))
