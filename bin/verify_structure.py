@@ -12,7 +12,7 @@ FORBIDDEN_KEYS = {"prompt", "output", "content", "messages", "answer", "api_key"
 
 def problems(root=ROOT):
     out = [f"missing: {p}" for p in REQUIRED if not (root / p).exists()]
-    for rec in (root / "benchmarks").rglob("receipt.json"):
+    for rec in (root / "benchmarks").rglob("receipt*.json"):
         data = json.loads(rec.read_text(encoding="utf-8"))
         stack = [data]
         while stack:

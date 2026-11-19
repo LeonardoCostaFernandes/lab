@@ -1,0 +1,37 @@
+{
+  "schema": "lab.receipt/1",
+  "status": "DEVICE_TESTED",
+  "machine": "Ryzen 7 5800H / RTX 3050 Laptop 4GB / 15.3GB RAM / Windows",
+  "endpoint": "http://127.0.0.1:8080",
+  "model": "qwen2.5-3b-instruct-q4_k_m",
+  "command": "bin/local_model_bench.ps1 (llama.cpp b12549 cuda12.4, -ngl 99 -c 4096)",
+  "params": {
+    "temperature": 0,
+    "seed": 42,
+    "max_tokens": 128,
+    "n_prompts": 2
+  },
+  "date_utc": "2026-11-19T21:22:18Z",
+  "runs": [
+    {
+      "prompt_sha256": "5c6fb6c12a425dcd54fe03b4e9f6d6fee1450ea4748d6dd09e8f64b36e73c829",
+      "output_sha256": "61c7d45d9d6db92dcfa6ba799c221defe9de15b1eeeb71605761cb2245b662b6",
+      "output_chars": 172,
+      "latency_ms": 546.9,
+      "prompt_tokens": 71,
+      "completion_tokens": 36,
+      "tokens_per_s": 65.83,
+      "error": null
+    },
+    {
+      "prompt_sha256": "d9497ab8a009a0799899dd1806902e540f2b88e767241a004643183b8f7e33d2",
+      "output_sha256": "f33f5224401ec54ae320cb0640ee1720ff1507fc515db9d5f783d9653d3a7d69",
+      "output_chars": 172,
+      "latency_ms": 694.2,
+      "prompt_tokens": 48,
+      "completion_tokens": 48,
+      "tokens_per_s": 69.14,
+      "error": null
+    }
+  ]
+}
