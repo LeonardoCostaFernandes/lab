@@ -1,0 +1,27 @@
+name: pruebas
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Suite n=2
+        run: |
+          for pass in 1 2; do
+            echo "pass $pass/2"
+            python3 -m unittest discover -s tests -p "test_*.py"
+            python3 bin/verify_structure.py
+          done

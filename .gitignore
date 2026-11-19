@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.venv/
+# local-only material: prompts, answers, models
+local/
+*.gguf
+*.safetensors
+.env

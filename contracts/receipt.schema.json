@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "lab/receipt.schema.json",
+  "title": "Local model benchmark receipt",
+  "type": "object",
+  "required": ["schema", "status", "date_utc", "machine", "endpoint", "model", "runs", "command"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {"const": "lab.receipt/1"},
+    "status": {"type": "string", "pattern": "^(DEVICE_TESTED|NO_DATA\\(.+\\))$"},
+    "date_utc": {"type": "string"},
+    "machine": {"type": "string"},
+    "endpoint": {"type": "string", "pattern": "^http://(127\\.0\\.0\\.1|\\[::1\\]):[0-9]+$"},
+    "model": {"type": "string"},
+    "command": {"type": "string"},
+    "params": {"type": "object"},
+    "runs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["prompt_sha256", "output_sha256", "latency_ms"],
+        "additionalProperties": false,
+        "properties": {
+          "prompt_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "output_sha256": {"type": ["string", "null"]},
+          "output_chars": {"type": ["integer", "null"]},
+          "latency_ms": {"type": ["number", "null"]},
+          "prompt_tokens": {"type": ["integer", "null"]},
+          "completion_tokens": {"type": ["integer", "null"]},
+          "tokens_per_s": {"type": ["number", "null"]},
+          "error": {"type": ["string", "null"]}
+        }
+      }
+    }
+  }
+}

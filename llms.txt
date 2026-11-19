@@ -1,0 +1,5 @@
+lab (LeonardoCostaFernandes): personal measured record for a PreceptorOS Companion. Not a service.
+INDEX: AGENTS.md#L1; README.md#L1; STATE.md#L1; contracts/receipt.schema.json; bin/local_model_bench.py.
+STATE: dated measurements; unmeasured = NO_DATA(cause).
+SERVING: NO_DATA; loopback-only benchmarks, nothing exposed.
+DEPTH: declare reading depth (0-4) per AGENTS.md before parsing.
