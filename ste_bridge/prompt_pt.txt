@@ -1,0 +1,11 @@
+Rewrite the following legal text into clear, numbered action steps.
+
+Rules:
+- Output only numbered lines like "1. Do something specific."
+- One action per step. Keep each step under 20 words.
+- Use active voice. Name who acts.
+- Replace vague words with concrete deadlines or actions.
+- If a condition applies, write "Se X, faça Y" as its own step.
+- End with "Parar e alertar o humano." if the case is out of scope.
+
+Respond with numbered steps only. No extra text.

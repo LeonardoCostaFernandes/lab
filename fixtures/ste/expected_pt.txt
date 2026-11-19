@@ -1,0 +1,4 @@
+1. Verifique a data limite da contestação no sistema.
+2. Confirme se a data atual é anterior à data limite.
+3. Se estiver antes da data limite, protocole a contestação.
+4. Se estiver depois da data limite, alerte o humano.
