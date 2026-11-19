@@ -2,6 +2,7 @@
 import http.server
 import json
 import pathlib
+import re
 import sys
 import tempfile
 import threading
@@ -248,14 +249,20 @@ class TestNormalizeRetryCount(unittest.TestCase):
 class TestRulesWordBoundary(unittest.TestCase):
     """Tests that R2 matches on word boundaries, not substrings."""
 
-    def test_breve_not_matched_in_abreviado(self):
-        # "abreviado" contains "breve" as substring but not as whole word
-        violations = rules.check("O prazo foi abreviado.", "pt")
+    def test_breve_not_matched_in_brevemente(self):
+        # "brevemente" contains "breve" as substring but not as whole word
+        violations = rules.check("Responda brevemente ao pedido.", "pt")
         r2_vague = [v for v in violations if v["rule"] == "R2_VAGUE"]
-        self.assertEqual(r2_vague, [], "breve should not match inside abreviado")
+        self.assertEqual(r2_vague, [], "breve should not match inside brevemente")
 
     def test_breve_matched_as_word(self):
         violations = rules.check("Em breve o prazo expira.", "pt")
+        r2_vague = [v for v in violations if v["rule"] == "R2_VAGUE"]
+        self.assertTrue(any(v["detail"] == "vague word found: breve" for v in r2_vague))
+
+    def test_breve_matched_in_em_breve(self):
+        # "em breve" must match "breve" as a whole word
+        violations = rules.check("O juiz decidirá em breve.", "pt")
         r2_vague = [v for v in violations if v["rule"] == "R2_VAGUE"]
         self.assertTrue(any(v["detail"] == "vague word found: breve" for v in r2_vague))
 
@@ -271,6 +278,92 @@ class TestSentenceSplitting(unittest.TestCase):
         self.assertNotIn("2", sentences)
         self.assertIn("Verifique a data", sentences)
         self.assertIn("Confirme o prazo", sentences)
+
+
+class TestFewShotExamples(unittest.TestCase):
+    """Tests that every few-shot example step in both prompt files passes rules.check."""
+
+    def _extract_example_steps(self, prompt_text: str) -> list[str]:
+        """Extract numbered steps from the Examples section of a prompt."""
+        steps = []
+        in_output = False
+        for line in prompt_text.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("Input:"):
+                in_output = False
+            elif stripped.startswith("Output:"):
+                in_output = True
+            elif stripped.startswith("Respond with"):
+                in_output = False
+            elif in_output:
+                m = re.match(r"^\d+[.)]\s*(.*)", stripped)
+                if m:
+                    step = m.group(1).strip()
+                    if step:
+                        steps.append(step)
+        return steps
+
+    def test_few_shot_pt_examples_pass_rules(self):
+        prompt_pt = (_ROOT / "ste_bridge" / "prompt_pt.txt").read_text(encoding="utf-8")
+        steps = self._extract_example_steps(prompt_pt)
+        self.assertGreater(len(steps), 0, "prompt_pt should contain few-shot example steps")
+        for step in steps:
+            violations = rules.check(step, "pt")
+            self.assertEqual(violations, [], f"PT example step should have 0 violations: {step!r}")
+
+    def test_few_shot_en_examples_pass_rules(self):
+        prompt_en = (_ROOT / "ste_bridge" / "prompt_en.txt").read_text(encoding="utf-8")
+        steps = self._extract_example_steps(prompt_en)
+        self.assertGreater(len(steps), 0, "prompt_en should contain few-shot example steps")
+        for step in steps:
+            violations = rules.check(step, "en")
+            self.assertEqual(violations, [], f"EN example step should have 0 violations: {step!r}")
+
+
+class TestRetryWithViolations(unittest.TestCase):
+    """Tests that retries == 1 when the retry still has violations."""
+
+    def test_retry_still_has_violations(self):
+        """When the model returns violations on both attempts, retries must equal 1."""
+
+        class ViolatingServer(http.server.BaseHTTPRequestHandler):
+            """Always returns text with vague words (triggers R2_VAGUE)."""
+
+            def do_POST(self):
+                n = int(self.headers["Content-Length"])
+                self.rfile.read(n)
+                # Text with "breve" triggers R2_VAGUE
+                steps = (
+                    "1. O advogado deve agir em breve.\n"
+                    "2. O juiz decidirá em breve."
+                )
+                body = json.dumps({
+                    "choices": [{"message": {"content": steps}}],
+                    "usage": {"prompt_tokens": 10, "completion_tokens": 20},
+                }).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *a):  # noqa: A002
+                pass
+
+        srv = http.server.HTTPServer(("127.0.0.1", 0), ViolatingServer)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        try:
+            result = normalize_mod.normalize(
+                text="Teste com violações.",
+                lang="pt",
+                endpoint=f"http://127.0.0.1:{srv.server_port}",
+                model="test-model",
+                timeout=5,
+            )
+            self.assertEqual(result["retries"], 1, "retries must be 1 when retry still has violations")
+            self.assertGreater(len(result["violations"]), 0, "violations should remain after retry")
+        finally:
+            srv.shutdown()
 
 
 if __name__ == "__main__":

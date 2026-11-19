@@ -8,4 +8,16 @@ Rules:
 - If a condition applies, write "Se X, faça Y" as its own step.
 - End with "Parar e alertar o humano." if the case is out of scope.
 
+Examples:
+
+Input: "O advogado deve protocolar a petição até sexta-feira."
+Output:
+1. O advogado prepara a petição.
+2. O advogado protocola a petição até sexta-feira.
+
+Input: "Se o réu pagar a multa, o juiz arquiva o caso."
+Output:
+1. Confirme se o réu pagou a multa.
+2. Se o réu pagou a multa, o juiz arquiva o caso.
+
 Respond with numbered steps only. No extra text.
