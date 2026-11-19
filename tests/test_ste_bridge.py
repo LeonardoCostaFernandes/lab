@@ -414,6 +414,42 @@ class TestCoverage(unittest.TestCase):
         result = coverage_mod.coverage(steps, ref, "pt")
         self.assertEqual(result["ratio"], 1.0)
 
+    def test_one_step_cannot_cover_two_refs(self):
+        """A single model step must not cover two different reference steps."""
+        # One generic model step that loosely matches both references
+        steps = ["Verifique os documentos."]
+        ref = [
+            "Verifique a data limite da contestação.",
+            "Verifique o prazo para resposta.",
+        ]
+        result = coverage_mod.coverage(steps, ref, "pt")
+        # With one-to-one matching, at most 1 of 2 refs can be covered
+        self.assertLessEqual(result["covered"], 1,
+                             "One model step must cover at most one reference step")
+
+    def test_accented_stop_words_removed(self):
+        """Accented stop words like 'não', 'também', 'são' must be normalized and excluded."""
+        # Text with accented stop words should produce the same tokens as unaccented
+        tokens1 = coverage_mod._tokens("Ele não sabe também.", "pt")
+        tokens2 = coverage_mod._tokens("Ele nao sabe tambem.", "pt")
+        self.assertEqual(tokens1, tokens2,
+                         "Accented and unaccented stop words must normalize identically")
+        # "nao" and "tambem" are stop words; only "ele" and "sabe" remain
+        self.assertNotIn("nao", tokens1)
+        self.assertNotIn("tambem", tokens1)
+        self.assertIn("sabe", tokens1)
+
+    def test_greedy_matching_highest_jaccard_first(self):
+        """Greedy matching should assign the best (highest Jaccard) pair first."""
+        steps = ["Verifique a data.", "Confirme o prazo."]
+        ref = [
+            "Verifique a data limite.",       # high match with step 0
+            "Confirme o prazo de resposta.",  # high match with step 1
+        ]
+        result = coverage_mod.coverage(steps, ref, "pt")
+        self.assertEqual(result["covered"], 2)
+        self.assertEqual(result["ratio"], 1.0)
+
 
 if __name__ == "__main__":
     unittest.main()
