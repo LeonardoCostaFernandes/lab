@@ -117,12 +117,28 @@ class MultiModeServer(http.server.BaseHTTPRequestHandler):
 class TestParseFixtures(unittest.TestCase):
     """Tests for fixture string parsing."""
 
-    def test_valid_fixture(self):
+    def test_valid_fixture_pipe(self):
         fixtures = ste_bench._parse_fixtures(["path/in.txt|path/ref.txt|pt"])
         self.assertEqual(len(fixtures), 1)
         self.assertEqual(fixtures[0]["input"], "path/in.txt")
         self.assertEqual(fixtures[0]["reference"], "path/ref.txt")
         self.assertEqual(fixtures[0]["lang"], "pt")
+
+    def test_valid_fixture_colon(self):
+        fixtures = ste_bench._parse_fixtures(["path/in.txt:path/ref.txt:en"])
+        self.assertEqual(len(fixtures), 1)
+        self.assertEqual(fixtures[0]["input"], "path/in.txt")
+        self.assertEqual(fixtures[0]["reference"], "path/ref.txt")
+        self.assertEqual(fixtures[0]["lang"], "en")
+
+    def test_mixed_delimiters(self):
+        fixtures = ste_bench._parse_fixtures([
+            "a/in.txt|a/ref.txt|pt",
+            "b/in.txt:b/ref.txt:en",
+        ])
+        self.assertEqual(len(fixtures), 2)
+        self.assertEqual(fixtures[0]["lang"], "pt")
+        self.assertEqual(fixtures[1]["lang"], "en")
 
     def test_invalid_fixture_format(self):
         with self.assertRaises(ValueError):
@@ -241,6 +257,70 @@ class TestMatrixRunner(unittest.TestCase):
             self.assertGreater(m["mean_latency_ms"], 0,
                                "latency should be positive")
 
+    def test_readme_mean_matches_receipts(self):
+        """Read the generated README.md and check one mean value against the receipts."""
+        out_dir = tempfile.mkdtemp()
+        argv = [
+            "--fixtures", self.fixture_str,
+            "--endpoints", self.endpoint_str,
+            "--modes", "text",
+            "--runs", "2",
+            "--out", out_dir,
+        ]
+        ste_bench.main(argv)
+
+        # Compute expected mean from receipts
+        receipts = pathlib.Path(out_dir) / "receipts.jsonl"
+        lines = receipts.read_text(encoding="utf-8").strip().splitlines()
+        rows = [json.loads(l) for l in lines]
+        means = ste_bench._compute_means(rows)
+
+        # Find the text mode mean
+        key = ("test-model", "text")
+        self.assertIn(key, means)
+        expected_ratio = means[key]["mean_ratio"]
+
+        # Read README and verify the mean appears
+        readme = (pathlib.Path(out_dir) / "README.md").read_text(encoding="utf-8")
+        self.assertIn(str(expected_ratio), readme,
+                      f"mean_ratio {expected_ratio} should appear in README.md")
+
+    def test_no_data_rows_show_no_data_in_table(self):
+        """Failed rows must print NO_DATA(cause) in every numeric cell of the results table."""
+        closed_port = 19877
+        endpoint_str = f"closed=http://127.0.0.1:{closed_port}=test-model"
+
+        out_dir = tempfile.mkdtemp()
+        argv = [
+            "--fixtures", self.fixture_str,
+            "--endpoints", endpoint_str,
+            "--modes", "text",
+            "--runs", "1",
+            "--out", out_dir,
+        ]
+        ste_bench.main(argv)
+
+        readme = (pathlib.Path(out_dir) / "README.md").read_text(encoding="utf-8")
+        lines = readme.splitlines()
+
+        # Find the results table section (between "## Results table" and the next "##")
+        in_results = False
+        results_rows = []
+        for l in lines:
+            if l.startswith("## Results table"):
+                in_results = True
+                continue
+            if l.startswith("## ") and in_results:
+                break
+            if in_results and l.startswith("|") and "test-model" in l:
+                results_rows.append(l)
+
+        self.assertTrue(len(results_rows) > 0, "Expected at least one results table row")
+        for tl in results_rows:
+            # A failed row has NO_DATA in steps, violations, retries, covered/total, ratio, latency_ms + status
+            self.assertGreaterEqual(tl.count("NO_DATA"), 6,
+                                    f"Expected at least 6 NO_DATA cells in results row, got: {tl}")
+
     def test_closed_port_gives_no_data(self):
         """When the endpoint is unreachable, rows should have NO_DATA status."""
         # Use a port where nothing is listening
@@ -314,7 +394,7 @@ class TestMatrixRunner(unittest.TestCase):
         self.assertIn("Test Machine", readme)
         self.assertIn("Results table", readme)
         self.assertIn("Means per model", readme)
-        self.assertIn("mean(x) = sum(x_i) / N", readme)
+        self.assertIn("mean(x) = sum(x_i) / n", readme)
 
     def test_default_machine_is_no_data(self):
         """When --machine is not given, README must show NO_DATA(machine_not_declared)."""
@@ -348,6 +428,7 @@ class TestComputeMeans(unittest.TestCase):
         self.assertEqual(means[key]["mean_violation_count"], 3.0)
         self.assertEqual(means[key]["mean_latency_ms"], 150.0)
         self.assertEqual(means[key]["ok_runs"], 2)
+        self.assertEqual(means[key]["runs"], 2)
 
     def test_means_with_all_failed(self):
         rows = [

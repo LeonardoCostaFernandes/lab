@@ -35,15 +35,22 @@ def _sha256(text: str) -> str:
 
 
 def _parse_fixtures(raw: list[str]) -> list[dict]:
-    """Parse 'input|reference|lang' strings into dicts.
+    """Parse fixture strings into dicts.
 
-    Uses '|' as separator to avoid conflicts with Windows drive letters (C:).
+    Accepts two delimiter forms:
+    - 'input|reference|lang'  (pipe separator)
+    - 'input:reference:lang'  (colon separator; paths must not contain colons)
     """
     fixtures = []
     for s in raw:
-        parts = s.split("|")
+        if "|" in s:
+            parts = s.split("|")
+        else:
+            parts = s.split(":")
         if len(parts) != 3:
-            raise ValueError(f"fixture must be input|reference|lang, got: {s!r}")
+            raise ValueError(
+                f"fixture must be input|reference|lang or input:reference:lang, got: {s!r}"
+            )
         inp, ref, lang = parts
         if lang not in ("pt", "en"):
             raise ValueError(f"lang must be pt or en, got: {lang!r}")
@@ -197,28 +204,38 @@ def _write_readme(out_dir: pathlib.Path, args: argparse.Namespace,
         "|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for r in rows:
-        lines.append(
-            f"| {r['model']} | {r['fixture']} | {r['mode']} | {r['run']} | "
-            f"{r['step_count']} | {r['violation_count']} | {r['retries']} | "
-            f"{r['covered']}/{r['total']} | {r['ratio']:.4f} | {r['latency_ms']:.1f} | "
-            f"{r['status']} |"
-        )
+        if r["status"].startswith("NO_DATA("):
+            cause = r["status"]
+            lines.append(
+                f"| {r['model']} | {r['fixture']} | {r['mode']} | {r['run']} | "
+                f"NO_DATA({cause}) | NO_DATA({cause}) | NO_DATA({cause}) | "
+                f"NO_DATA({cause}) | NO_DATA({cause}) | NO_DATA({cause}) | "
+                f"{r['status']} |"
+            )
+        else:
+            lines.append(
+                f"| {r['model']} | {r['fixture']} | {r['mode']} | {r['run']} | "
+                f"{r['step_count']} | {r['violation_count']} | {r['retries']} | "
+                f"{r['covered']}/{r['total']} | {r['ratio']:.4f} | {r['latency_ms']:.1f} | "
+                f"{r['status']} |"
+            )
 
     lines.append("")
     lines.append("## Means per model + mode")
     lines.append("")
     lines.append(
-        "Formula: `mean(x) = sum(x_i) / N`  where N = number of successful runs."
+        "Formula: `mean(x) = sum(x_i) / n`  where n = number of successful rows used."
     )
     lines.append("")
     lines.append(
-        "| model | mode | runs | ok_runs | mean_ratio | mean_violation_count | mean_latency_ms |"
+        "| model | mode | runs | n | mean_ratio | mean_violation_count | mean_latency_ms |"
     )
     lines.append("|---|---|---|---|---|---|---|")
     for key in sorted(means):
         m = means[key]
+        n_label = m["ok_runs"]
         lines.append(
-            f"| {m['model']} | {m['mode']} | {m['runs']} | {m['ok_runs']} | "
+            f"| {m['model']} | {m['mode']} | {m['runs']} | {n_label} | "
             f"{m['mean_ratio']} | {m['mean_violation_count']} | {m['mean_latency_ms']} |"
         )
 
