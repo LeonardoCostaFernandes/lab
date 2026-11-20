@@ -20,7 +20,7 @@
 | lawyer_pt_2.txt | 2 | 2 | 0 | 0 | 2045ce729bfb |
 | lawyer_en.txt | 1 | 3 | 0 | 0 | 82abd5902466 |
 | lawyer_en.txt | 2 | 3 | 0 | 0 | 10d051630eb3 |
-| **Baseline (lawyer_pt)** | — | 2 | 5 | 1 | — |
+| **Baseline (lawyer_pt)** — source: T-0006 orchestrator run, receipts ste-T6-receipt-1/2 | — | 2 | 5 | 1 | e67537e4082d |
 
 ## T-0008 — Coverage metric (old metric, many-to-one, superseded by model-compare)
 

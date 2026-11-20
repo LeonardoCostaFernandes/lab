@@ -205,7 +205,7 @@ def _write_readme(out_dir: pathlib.Path, args: argparse.Namespace,
     ]
     for r in rows:
         if r["status"].startswith("NO_DATA("):
-            cause = r["status"]
+            cause = r["status"][len("NO_DATA("):-1]  # status is already NO_DATA(<cause>)
             lines.append(
                 f"| {r['model']} | {r['fixture']} | {r['mode']} | {r['run']} | "
                 f"NO_DATA({cause}) | NO_DATA({cause}) | NO_DATA({cause}) | "
