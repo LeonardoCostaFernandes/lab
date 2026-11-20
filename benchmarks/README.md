@@ -22,7 +22,7 @@ python bin/ste_bench.py \
 
 Arguments:
 
-- `--fixtures` — one or more `input|reference|lang` (lang = pt or en).
+- `--fixtures` — one or more `input|reference|lang` or `input:reference:lang` (lang = pt or en).
 - `--endpoints` — one or more `name=url=model`.
 - `--modes` — `text`, `structured`, or both.
 - `--runs` — repetitions per combination (default 2).
